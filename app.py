@@ -5,7 +5,7 @@ Model input: index, Name, open, high, low, close  →  predicts: volume
 """
 
 import os
-import math
+from typing import Tuple
 import requests
 from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
@@ -155,7 +155,7 @@ def call_watsonx_tabular(row: dict) -> float:
 
 # ─────── AI Narrative Builder ─────────────────────────────────────────────────
 
-def _classify_volume(volume: float) -> tuple[str, str]:
+def _classify_volume(volume: float) -> Tuple[str, str]:
     """Return (label, colour-key) based on AGENT_INSTRUCTIONS thresholds."""
     if volume < 1_000_000:
         return "Low", "green"
