@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>StockVol-AI - IBM Watsonx Predictor</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--card:rgba(22,27,34,.9);--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.15);--text:#e6edf3;--muted:#8b949e;--dim:#484f58;--blue:#58a6ff;--cyan:#39d353;--purple:#bc8cff;--orange:#f0883e;--red:#ff7b72;--r8:8px;--r12:12px;--r18:18px;--r24:24px;--tr:.25s cubic-bezier(.4,0,.2,1)}
+[data-theme=light]{--bg:#f6f8fa;--bg2:#fff;--card:rgba(255,255,255,.92);--glass:rgba(0,0,0,.03);--border:rgba(0,0,0,.1);--border2:rgba(0,0,0,.2);--text:#24292f;--muted:#57606a;--dim:#adb5bd}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.65;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;transition:background var(--tr),color var(--tr)}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(88,166,255,.06) 0%,transparent 70%),radial-gradient(ellipse 60% 50% at 80% 90%,rgba(188,140,255,.05) 0%,transparent 70%);pointer-events:none;z-index:0}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+.glass-nav{background:rgba(13,17,23,.82);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:1030;padding:.55rem 0}
+[data-theme=light] .glass-nav{background:rgba(246,248,250,.88)}
+.brand-icon{width:36px;height:36px;border-radius:var(--r8);background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#fff}
+.brand-text{font-size:1.2rem;font-weight:700;letter-spacing:-.3px;color:var(--text)}.brand-accent{color:var(--blue)}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:var(--r8);background:var(--glass);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all var(--tr)}
+.btn-icon:hover{background:var(--border);color:var(--blue);border-color:var(--blue)}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--dim);display:inline-block;transition:background var(--tr)}
+.status-dot.online{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}.status-dot.error{background:var(--red);box-shadow:0 0 8px var(--red)}
+.status-label{font-size:.8rem;color:var(--muted)}
+.hero-section{padding:110px 20px 40px;position:relative;z-index:1}
+.hero-badge{display:inline-flex;align-items:center;padding:6px 16px;border-radius:99px;background:rgba(88,166,255,.12);border:1px solid rgba(88,166,255,.3);font-size:.8rem;font-weight:600;color:var(--blue);margin-bottom:1.2rem}
+.hero-title{font-size:clamp(1.8rem,5vw,3rem);font-weight:800;letter-spacing:-1.5px;margin-bottom:.75rem}
+.gradient-text{background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-subtitle{font-size:1rem;color:var(--muted);margin-bottom:1.5rem;max-width:540px;margin-left:auto;margin-right:auto}
+.hero-stats{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap}
+.stat-card{display:flex;align-items:center;gap:.5rem;padding:9px 18px;background:var(--card);border:1px solid var(--border);border-radius:var(--r12);font-size:.82rem;font-weight:600;color:var(--muted);backdrop-filter:blur(10px);transition:all var(--tr)}
+.stat-card:hover{border-color:var(--blue);color:var(--blue);transform:translateY(-2px)}.stat-card i{color:var(--blue)}
+.main-container{position:relative;z-index:1;padding-bottom:80px}
+.glass-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r24);backdrop-filter:blur(20px);box-shadow:0 4px 32px rgba(0,0,0,.3)}
+.input-panel{padding:1.25rem;position:sticky;top:80px}
+.panel-header{font-size:.78rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:1rem}
+.panel-divider{border-color:var(--border);margin:1rem 0}
+.form-label-sm{display:block;font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+.inp{background:var(--glass)!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:var(--r8)!important;font-size:.83rem!important;transition:border-color var(--tr),box-shadow var(--tr)}
+.inp::placeholder{color:var(--dim)!important}
+.inp:focus{border-color:var(--blue)!important;box-shadow:0 0 0 3px rgba(88,166,255,.15)!important;outline:none!important}
+.inp.is-invalid{border-color:var(--red)!important}
+.predict-btn{background:linear-gradient(135deg,#1f6feb,#388bfd)!important;color:#fff!important;border:none!important;border-radius:var(--r8)!important;font-size:.88rem!important;font-weight:600!important;padding:10px 0!important;transition:all var(--tr)}
+.predict-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(31,111,235,.45)}.predict-btn:active{transform:translateY(0)}.predict-btn:disabled{opacity:.55;pointer-events:none}
+.model-info-block{display:flex;flex-direction:column;gap:.4rem}
+.info-row{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted)}
+.info-val{font-weight:600;color:var(--blue);font-family:monospace;font-size:.75rem}
+.chat-wrapper{display:flex;flex-direction:column;height:calc(100vh - 320px);min-height:480px}
+.chat-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0}
+.ai-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#fff;position:relative;flex-shrink:0}
+.ai-avatar-sm{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;flex-shrink:0}
+.user-av{background:linear-gradient(135deg,#3d5a80,#5e8ab4)!important}
+.pulse-ring::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--blue);animation:pulse-ring 2s ease-out infinite}
+@keyframes pulse-ring{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.4)}}
+.chat-title{font-weight:700;font-size:1rem}.chat-subtitle{font-size:.75rem;color:var(--muted)}
+.vol-badge{padding:5px 14px;border-radius:99px;font-size:.78rem;font-weight:700;border:1px solid;animation:fadeIn .4s ease both}
+.badge-low{background:rgba(57,211,83,.12);border-color:rgba(57,211,83,.35);color:#39d353}
+.badge-normal{background:rgba(88,166,255,.12);border-color:rgba(88,166,255,.35);color:#58a6ff}
+.badge-high{background:rgba(240,136,62,.12);border-color:rgba(240,136,62,.35);color:#f0883e}
+.badge-extreme{background:rgba(255,123,114,.12);border-color:rgba(255,123,114,.35);color:#ff7b72}
+.chat-messages{flex:1;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem}
+.message{display:flex;gap:.75rem;max-width:88%;animation:msg-in .35s cubic-bezier(.4,0,.2,1) both}
+@keyframes msg-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.message.user-msg{margin-left:auto;flex-direction:row-reverse}.message.bot-msg{margin-right:auto}
+.msg-bubble{padding:.85rem 1.1rem;border-radius:var(--r18);line-height:1.65;font-size:.88rem;word-break:break-word}
+.user-msg .msg-bubble{background:linear-gradient(135deg,#1f6feb,#388bfd);color:#fff;border-bottom-right-radius:4px;box-shadow:0 4px 16px rgba(31,111,235,.35)}
+.bot-msg .msg-bubble{background:var(--bg2);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg-bubble.error-bubble{background:rgba(255,123,114,.12);border-color:rgba(255,123,114,.35)!important;color:var(--red)}
+.msg-time{font-size:.68rem;color:var(--dim);margin-top:4px}.user-msg .msg-time{text-align:right}.bot-msg .msg-time{text-align:left}
+.bot-msg .msg-bubble h2{font-size:.92rem;font-weight:700;color:var(--blue);margin:1rem 0 .4rem}
+.bot-msg .msg-bubble ul,.bot-msg .msg-bubble ol{padding-left:1.2rem;margin:.3rem 0}
+.bot-msg .msg-bubble code{font-family:monospace;font-size:.8rem;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.2);padding:1px 6px;border-radius:4px;color:var(--blue)}
+.bot-msg .msg-bubble strong{color:var(--text)}
+.bot-msg .msg-bubble blockquote{margin:.5rem 0;padding:8px 12px;border-left:3px solid var(--orange);background:rgba(240,136,62,.08);border-radius:0 var(--r8) var(--r8) 0;font-size:.83rem}
+.table-wrap{overflow-x:auto;margin:.5rem 0}
+.ai-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.ai-table th{background:rgba(88,166,255,.1);color:var(--blue);padding:6px 10px;text-align:left;font-weight:700;border-bottom:1px solid var(--border)}
+.ai-table td{padding:5px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.ai-table tr:last-child td{border-bottom:none}
+.typing-indicator{display:flex;align-items:center;gap:.6rem;padding:.75rem 1.5rem;border-top:1px solid var(--border);flex-shrink:0}
+.typing-dots{display:flex;gap:4px}.typing-dots span{width:7px;height:7px;border-radius:50%;background:var(--blue);animation:bounce 1.2s ease-in-out infinite}
+.typing-dots span:nth-child(2){animation-delay:.2s}.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:scale(.7);opacity:.5}40%{transform:scale(1.1);opacity:1}}
+.typing-text{font-size:.8rem;color:var(--muted);font-style:italic}
+.welcome-card{margin:auto;text-align:center;padding:2.5rem 2rem;max-width:480px}
+.welcome-icon{font-size:3rem;background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block;margin-bottom:1rem}
+.welcome-card h4{font-weight:700;margin-bottom:.5rem}.welcome-card p{font-size:.875rem;color:var(--muted);margin-bottom:1.5rem}
+.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem}
+.chip{padding:6px 14px;border-radius:99px;background:var(--glass);border:1px solid var(--border);font-size:.78rem;color:var(--muted);cursor:pointer;transition:all var(--tr)}
+.chip:hover{background:rgba(88,166,255,.12);border-color:var(--blue);color:var(--blue)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.12);font-weight:700;font-size:.8rem}
+.skeleton-line{height:26px;border-radius:var(--r8);background:linear-gradient(90deg,var(--glass) 25%,rgba(255,255,255,.06) 50%,var(--glass) 75%);background-size:200% 100%;animation:shimmer 1.6s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.app-footer{position:fixed;bottom:0;left:0;right:0;background:rgba(13,17,23,.92);backdrop-filter:blur(16px);border-top:1px solid var(--border);padding:9px 0;z-index:999}
+[data-theme=light] .app-footer{background:rgba(246,248,250,.92)}
+.footer-disclaimer{font-size:.72rem;color:var(--muted);margin:0 0 2px}.footer-copy{font-size:.68rem;color:var(--dim);margin:0}
+.animate-fade-in{animation:fadeIn .7s ease both}.animate-slide-up{animation:slideUp .7s ease both}
+.delay-1{animation-delay:.15s}.delay-2{animation-delay:.3s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:991.98px){.chat-wrapper{height:calc(100vh - 280px);min-height:400px}.hero-section{padding:90px 16px 28px}}
+@media(max-width:575.98px){.chat-messages{padding:1rem}.chat-header{padding:.75rem 1rem}.message{max-width:96%}.hero-stats{gap:.5rem}}
+</style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg fixed-top glass-nav">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <div class="brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <span class="brand-text">StockVol<span class="brand-accent">AI</span></span>
+    </a>
+    <div class="d-flex align-items-center gap-3 ms-auto">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-label d-none d-sm-inline" id="statusLabel">Connecting...</span>
+      <button class="btn btn-icon" id="themeToggle" title="Toggle theme"><i class="bi bi-moon-stars-fill" id="themeIcon"></i></button>
+      <button class="btn btn-icon" id="clearBtn" title="Clear chat"><i class="bi bi-trash3"></i></button>
+    </div>
+  </div>
+</nav>
+<section class="hero-section">
+  <div class="container text-center">
+    <div class="hero-badge animate-fade-in"><i class="bi bi-cpu-fill me-1"></i>IBM Watsonx AutoAI - Tabular Volume Model</div>
+    <h1 class="hero-title animate-slide-up">Stock Volume <span class="gradient-text">Predictor</span></h1>
+    <p class="hero-subtitle animate-slide-up delay-1">Enter OHLC data and get AI-powered volume forecast with machine maintenance and safety guidance</p>
+    <div class="hero-stats animate-slide-up delay-2">
+      <div class="stat-card"><i class="bi bi-bar-chart-line-fill"></i><span>Volume Prediction</span></div>
+      <div class="stat-card"><i class="bi bi-wrench-adjustable"></i><span>Repair Guidance</span></div>
+      <div class="stat-card"><i class="bi bi-shield-check"></i><span>Safety Protocols</span></div>
+    </div>
+  </div>
+</section>
+<main class="main-container">
+  <div class="container-fluid px-3 px-lg-5">
+    <div class="row g-4">
+      <div class="col-12 col-lg-4 col-xl-3">
+        <div class="glass-card input-panel">
+          <div class="panel-header"><i class="bi bi-sliders2 me-2"></i>Prediction Input</div>
+          <div class="mb-3">
+            <label class="form-label-sm">Quick Examples</label>
+            <div id="exampleBtns" class="d-flex flex-wrap gap-1">
+              <div class="skeleton-line" style="width:90px"></div>
+              <div class="skeleton-line" style="width:80px"></div>
+              <div class="skeleton-line" style="width:95px"></div>
+            </div>
+          </div>
+          <hr class="panel-divider"/>
+          <form id="predictionForm" novalidate>
+            <div class="mb-2">
+              <label class="form-label-sm" for="f_index">Row Index</label>
+              <input type="number" id="f_index" class="form-control form-control-sm inp" placeholder="0" min="0" step="1" required/>
+            </div>
+            <div class="mb-2">
+              <label class="form-label-sm" for="f_name">Stock Ticker</label>
+              <input type="text" id="f_name" class="form-control form-control-sm inp" placeholder="e.g. AAPL" maxlength="10" required/>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label-sm" for="f_open">Open $</label>
+                <input type="number" id="f_open" class="form-control form-control-sm inp" placeholder="172.50" step="0.01" min="0" required/>
+              </div>
+              <div class="col-6">
+                <label class="form-label-sm" for="f_close">Close $</label>
+                <input type="number" id="f_close" class="form-control form-control-sm inp" placeholder="173.80" step="0.01" min="0" required/>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label-sm" for="f_high">High $</label>
+                <input type="number" id="f_high" class="form-control form-control-sm inp" placeholder="175.00" step="0.01" min="0" required/>
+              </div>
+              <div class="col-6">
+                <label class="form-label-sm" for="f_low">Low $</label>
+                <input type="number" id="f_low" class="form-control form-control-sm inp" placeholder="170.00" step="0.01" min="0" required/>
+              </div>
+            </div>
+            <button type="submit" class="btn predict-btn w-100" id="predictBtn">
+              <i class="bi bi-lightning-charge-fill me-2"></i>Predict Volume
+            </button>
+          </form>
+          <hr class="panel-divider"/>
+          <div class="model-info-block">
+            <div class="info-row"><span>Model</span><span class="info-val">AutoAI Tabular</span></div>
+            <div class="info-row"><span>Target</span><span class="info-val">volume</span></div>
+            <div class="info-row"><span>Region</span><span class="info-val">EU-DE</span></div>
+            <div class="info-row"><span>Provider</span><span class="info-val">IBM Watsonx</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-8 col-xl-9">
+        <div class="chat-wrapper glass-card">
+          <div class="chat-header">
+            <div class="d-flex align-items-center gap-3">
+              <div class="ai-avatar pulse-ring"><i class="bi bi-robot"></i></div>
+              <div>
+                <div class="chat-title">StockVol-AI</div>
+                <div class="chat-subtitle">IBM Watsonx AutoAI - volume prediction + maintenance + safety</div>
+              </div>
+            </div>
+            <div id="volBadge" class="vol-badge d-none"></div>
+          </div>
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="typing-indicator d-none" id="typingIndicator">
+            <div class="ai-avatar-sm"><i class="bi bi-robot"></i></div>
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+            <span class="typing-text">Watsonx is predicting...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer class="app-footer">
+  <div class="container text-center">
+    <p class="footer-disclaimer"><i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i><strong>Disclaimer:</strong> StockVol-AI is for informational purposes only. Not financial advice.</p>
+    <p class="footer-copy">2025 StockVol-AI - IBM Watsonx AutoAI - Flask</p>
+  </div>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<script>
+"use strict";
+const chatMessages=document.getElementById("chatMessages"),predictionForm=document.getElementById("predictionForm"),predictBtn=document.getElementById("predictBtn"),typingIndicator=document.getElementById("typingIndicator"),statusDot=document.getElementById("statusDot"),statusLabel=document.getElementById("statusLabel"),themeToggle=document.getElementById("themeToggle"),themeIcon=document.getElementById("themeIcon"),clearBtn=document.getElementById("clearBtn"),exampleBtns=document.getElementById("exampleBtns"),volBadge=document.getElementById("volBadge");
+let isSending=false;
+function getTheme(){return localStorage.getItem("sv-theme")||"dark"}
+function applyTheme(t){document.documentElement.setAttribute("data-theme",t);localStorage.setItem("sv-theme",t);themeIcon.className=t==="dark"?"bi bi-sun-fill":"bi bi-moon-stars-fill"}
+themeToggle.addEventListener("click",function(){applyTheme(getTheme()==="dark"?"light":"dark");});
+applyTheme(getTheme());
+async function checkHealth(){try{const r=await fetch("/api/health");if(r.ok){statusDot.className="status-dot online";statusLabel.textContent="Online";}else throw new Error();}catch(e){statusDot.className="status-dot error";statusLabel.textContent="Offline";}}
+checkHealth();
+async function loadExamples(){try{const r=await fetch("/api/quick-examples"),data=await r.json();exampleBtns.innerHTML="";(data.examples||[]).forEach(function(ex){const btn=document.createElement("button");btn.type="button";btn.className="chip";btn.textContent=ex.label;btn.addEventListener("click",function(){fillForm(ex);});exampleBtns.appendChild(btn);});}catch(e){exampleBtns.innerHTML='<span style="font-size:.75rem;color:var(--dim)">Could not load</span>';}}
+loadExamples();
+function fillForm(ex){document.getElementById("f_index").value=ex.index||0;document.getElementById("f_name").value=ex.Name||"";document.getElementById("f_open").value=ex.open||"";document.getElementById("f_high").value=ex.high||"";document.getElementById("f_low").value=ex.low||"";document.getElementById("f_close").value=ex.close||"";predictionForm.querySelectorAll(".inp").forEach(function(i){i.classList.remove("is-invalid");});}
+function renderWelcome(){chatMessages.innerHTML='<div class="welcome-card animate-fade-in"><i class="bi bi-graph-up-arrow welcome-icon"></i><h4>Ready to predict</h4><p>Fill in the OHLC stock data on the left and click <strong>Predict Volume</strong>.<br>IBM Watsonx AutoAI returns a volume forecast with machine maintenance and safety guidance.</p><div class="suggestion-chips"><span class="chip" onclick="fillFormByLabel(\'AAPL - Bull Day\')">Try AAPL</span><span class="chip" onclick="fillFormByLabel(\'TSLA - High Vol\')">Try TSLA</span><span class="chip" onclick="fillFormByLabel(\'NVDA - Earnings\')">Try NVDA</span></div></div>';}
+async function fillFormByLabel(label){const r=await fetch("/api/quick-examples"),data=await r.json(),ex=(data.examples||[]).find(function(e){return e.label===label;});if(ex)fillForm(ex);}
+renderWelcome();
+function esc(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function mdToHtml(raw){return marked.parse(raw);}
+function appendMessage(role,html,ts,isErr){
+  const wc=chatMessages.querySelector(".welcome-card");if(wc)wc.remove();
+  const wrap=document.createElement("div");wrap.className="message "+(role==="user"?"user-msg":"bot-msg");
+  const av=role==="user"?'<div class="ai-avatar user-av" style="width:36px;height:36px;font-size:1rem;flex-shrink:0"><i class="bi bi-bar-chart-fill"></i></div>':'<div class="ai-avatar-sm" style="flex-shrink:0"><i class="bi bi-robot"></i></div>';
+  wrap.innerHTML=av+'<div style="max-width:100%;overflow:hidden"><div class="msg-bubble'+(isErr?" error-bubble":"")+'">'+html+'</div><div class="msg-time">'+(ts||now())+'</div></div>';
+  chatMessages.appendChild(wrap);chatMessages.scrollTo({top:chatMessages.scrollHeight,behavior:"smooth"});
+}
+function now(){return new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});}
+function updateBadge(vol){if(!vol)return;const m=vol/1000000;let cls="badge-normal";if(vol>=50000000)cls="badge-extreme";else if(vol>=10000000)cls="badge-high";else if(vol<1000000)cls="badge-low";volBadge.className="vol-badge "+cls;volBadge.textContent=m.toFixed(2)+"M shares";volBadge.classList.remove("d-none");}
+predictionForm.addEventListener("submit",async function(e){
+  e.preventDefault();if(isSending)return;
+  let valid=true;predictionForm.querySelectorAll("[required]").forEach(function(inp){if(!inp.value.trim()){inp.classList.add("is-invalid");valid=false;}else inp.classList.remove("is-invalid");});
+  if(!valid)return;
+  const payload={index:parseInt(document.getElementById("f_index").value),Name:document.getElementById("f_name").value.trim().toUpperCase(),open:parseFloat(document.getElementById("f_open").value),high:parseFloat(document.getElementById("f_high").value),low:parseFloat(document.getElementById("f_low").value),close:parseFloat(document.getElementById("f_close").value)};
+  isSending=true;predictBtn.disabled=true;predictBtn.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Predicting...';
+  appendMessage("user","<strong>Prediction Request</strong><br/><span class='tag'>"+payload.Name+"</span> Open <code>$"+payload.open+"</code> High <code>$"+payload.high+"</code> Low <code>$"+payload.low+"</code> Close <code>$"+payload.close+"</code>",now());
+  typingIndicator.classList.remove("d-none");chatMessages.scrollTo({top:chatMessages.scrollHeight,behavior:"smooth"});
+  try{
+    const resp=await fetch("/api/predict",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const data=await resp.json();typingIndicator.classList.add("d-none");
+    if(!resp.ok||data.error){appendMessage("bot","<strong>Error:</strong> "+esc(data.error||"Unexpected error"),now(),true);}
+    else{appendMessage("bot",mdToHtml(data.reply),data.timestamp||now());updateBadge(data.predicted_volume);}
+  }catch(err){typingIndicator.classList.add("d-none");appendMessage("bot","<strong>Network error:</strong> "+esc(err.message),now(),true);}
+  finally{isSending=false;predictBtn.disabled=false;predictBtn.innerHTML='<i class="bi bi-lightning-charge-fill me-2"></i>Predict Volume';}
+});
+clearBtn.addEventListener("click",async function(){if(!confirm("Clear history?"))return;await fetch("/api/clear",{method:"POST"});volBadge.classList.add("d-none");renderWelcome();});
+predictionForm.querySelectorAll(".inp").forEach(function(inp){inp.addEventListener("blur",function(){if(inp.hasAttribute("required")&&!inp.value.trim())inp.classList.add("is-invalid");else inp.classList.remove("is-invalid");});});
+</script>
+</body>
+</html>
