@@ -8,7 +8,7 @@ import os
 from typing import Tuple
 import requests
 from flask import Flask, render_template, request, jsonify, session
-from flask_cors import CORS
+
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -62,7 +62,7 @@ AGENT_INSTRUCTIONS = {
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_secret_key_change_me")
-CORS(app)
+
 
 # IBM Watsonx Configuration
 IBM_API_KEY   = os.getenv("IBM_API_KEY")
