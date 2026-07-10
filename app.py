@@ -1,84 +1,80 @@
+# -*- coding: utf-8 -*-
 """
-Stock Volume Predictor — Flask Backend
+Stock Volume Predictor - Flask Backend
 Powered by IBM Watsonx.ai AutoAI Tabular Model
-Model input: index, Name, open, high, low, close  →  predicts: volume
+Model input: index, Name, open, high, low, close -> predicts: volume
 """
 
 import os
-from typing import Tuple
 import requests
 from flask import Flask, render_template, request, jsonify, session
-
 from dotenv import load_dotenv
 from datetime import datetime
 
 load_dotenv()
 
-# ─────────────────────────────────────────────────────────────────────────────
+# =============================================================================
 # AGENT INSTRUCTIONS
-# Customize the agent's behavior, tone, safety rules, and investment
-# preferences here. These instructions drive the narrative built around the
-# numeric volume prediction returned by the Watsonx AutoAI model.
-# ─────────────────────────────────────────────────────────────────────────────
+# Customize the agent behavior, tone, safety rules, and investment preferences.
+# These settings drive the narrative built around the numeric volume prediction.
+# =============================================================================
 AGENT_INSTRUCTIONS = {
-    # ── TONE & COMMUNICATION STYLE ──────────────────────────────────────────
-    "tone": "professional",          # options: professional | friendly | technical
-    "use_confidence_ranges": True,   # wrap predictions with ±10% confidence band
+    # -- TONE & COMMUNICATION STYLE -------------------------------------------
+    "tone": "professional",         # professional | friendly | technical
+    "use_confidence_ranges": True,  # wrap predictions with +/-10% confidence band
     "avoid_jargon": True,
 
-    # ── PREDICTION BEHAVIOUR ────────────────────────────────────────────────
-    "volume_spike_threshold": 300,   # % above 30-day avg → flagged HIGH RISK
-    "classify_volume": True,         # auto-label Low / Normal / High / Extreme
+    # -- PREDICTION BEHAVIOUR -------------------------------------------------
+    "volume_spike_threshold": 300,  # % above 30-day avg -> flagged HIGH RISK
+    "classify_volume": True,        # auto-label Low / Normal / High / Extreme
 
-    # ── MACHINE MAINTENANCE & SAFETY (MANDATORY) ────────────────────────────
-    # These maintenance items are ALWAYS appended after every prediction.
+    # -- MACHINE MAINTENANCE & SAFETY (MANDATORY) -----------------------------
+    # These items are ALWAYS appended after every prediction.
     "maintenance_items": [
-        "Inspect and clean server air-filters — high-volume sessions increase heat load",
+        "Inspect and clean server air-filters - high-volume sessions increase heat load",
         "Verify UPS battery health and test automatic-transfer switch under load",
         "Check network-switch port utilisation; replace any port showing >80% saturation",
-        "Review RAID array status and initiate a consistency check if last check >7 days",
+        "Review RAID array status and run a consistency check if last check was >7 days ago",
         "Validate cooling-system coolant levels and fan RPM telemetry",
     ],
     "safety_instructions": [
         "ELECTRICAL: Follow LOTO (Lockout/Tag-Out) before servicing any live equipment",
         "PPE: Wear anti-static wrist-strap and insulated gloves when handling server boards",
-        "COOLING: Never block ventilation gaps; maintain ≥60 cm clearance behind racks",
+        "COOLING: Never block ventilation gaps; maintain at least 60 cm clearance behind racks",
         "EMERGENCY SHUTDOWN: Know the location of the PDU breaker and UPS bypass switch",
-        "FIRE: CO₂ or FM-200 suppressants only — never use water near energised equipment",
+        "FIRE: Use CO2 or FM-200 suppressants only - never use water near energised equipment",
     ],
 
-    # ── INVESTMENT PREFERENCES ──────────────────────────────────────────────
-    "risk_profile": "moderate",      # conservative | moderate | aggressive
-    "max_leverage_retail": 2,        # hard cap mentioned in advisory text
+    # -- INVESTMENT PREFERENCES -----------------------------------------------
+    "risk_profile": "moderate",     # conservative | moderate | aggressive
+    "max_leverage_retail": 2,       # hard cap mentioned in advisory text
     "always_recommend_diversification": True,
 
-    # ── SAFETY RULES (HARD LIMITS) ──────────────────────────────────────────
+    # -- SAFETY RULES (HARD LIMITS) -------------------------------------------
     "no_return_guarantees": True,
     "no_insider_advice": True,
     "mandatory_disclaimer": True,
     "refuse_illegal_requests": True,
 }
-# ─────────────────────────────────────────────────────────────────────────────
+# =============================================================================
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_secret_key_change_me")
-
 
 # IBM Watsonx Configuration
 IBM_API_KEY   = os.getenv("IBM_API_KEY")
 IBM_PUBLIC_EP = os.getenv("IBM_PUBLIC_ENDPOINT")
 IBM_IAM_URL   = os.getenv("IBM_IAM_URL", "https://iam.cloud.ibm.com/identity/token")
 
-# AutoAI model input schema (discovered via /ml/v4/models API)
+# AutoAI model input schema
 MODEL_FIELDS = ["index", "Name", "open", "high", "low", "close"]
 
 _iam_token_cache = {"token": None, "expires_at": 0}
 
 
-# ─────── IAM Auth ─────────────────────────────────────────────────────────────
+# --- IAM Auth -----------------------------------------------------------------
 
-def get_iam_token() -> str:
-    """Fetch (or return cached) IBM IAM bearer token."""
+def get_iam_token():
     now = datetime.utcnow().timestamp()
     if _iam_token_cache["token"] and now < _iam_token_cache["expires_at"] - 60:
         return _iam_token_cache["token"]
@@ -99,13 +95,9 @@ def get_iam_token() -> str:
     return _iam_token_cache["token"]
 
 
-# ─────── Watsonx AutoAI call ──────────────────────────────────────────────────
+# --- Watsonx AutoAI call ------------------------------------------------------
 
-def call_watsonx_tabular(row: dict) -> float:
-    """
-    Send one row to the AutoAI deployment and return the predicted volume.
-    row keys must match MODEL_FIELDS: index, Name, open, high, low, close
-    """
+def call_watsonx_tabular(row):
     token = get_iam_token()
 
     values_row = [
@@ -127,7 +119,7 @@ def call_watsonx_tabular(row: dict) -> float:
     }
 
     headers = {
-        "Authorization": f"Bearer {token}",
+        "Authorization": "Bearer " + token,
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
@@ -136,132 +128,137 @@ def call_watsonx_tabular(row: dict) -> float:
 
     if not resp.ok:
         raise RuntimeError(
-            f"Watsonx API error {resp.status_code}: {resp.text[:300]}"
+            "Watsonx API error " + str(resp.status_code) + ": " + resp.text[:300]
         )
 
     result = resp.json()
-    # AutoAI online-deployment response shape:
-    #   {"predictions":[{"fields":["prediction","probability"],"values":[[vol, ...]]}]}
     predictions = result.get("predictions", [])
     if predictions:
         values = predictions[0].get("values", [])
         if values:
-            # first element of first row is the predicted label / regression value
-            raw = values[0][0]
-            return float(raw)
+            return float(values[0][0])
 
-    raise RuntimeError(f"Unexpected response shape: {result}")
+    raise RuntimeError("Unexpected response shape: " + str(result))
 
 
-# ─────── AI Narrative Builder ─────────────────────────────────────────────────
+# --- Volume classifier --------------------------------------------------------
 
-def _classify_volume(volume: float) -> Tuple[str, str]:
-    """Return (label, colour-key) based on AGENT_INSTRUCTIONS thresholds."""
-    if volume < 1_000_000:
-        return "Low", "green"
-    if volume < 10_000_000:
-        return "Normal", "blue"
-    if volume < 50_000_000:
-        return "High", "orange"
-    return "Extreme", "red"
+def classify_volume(volume):
+    if volume < 1000000:
+        return "Low"
+    if volume < 10000000:
+        return "Normal"
+    if volume < 50000000:
+        return "High"
+    return "Extreme"
 
 
-def build_narrative(row: dict, predicted_volume: float) -> str:
-    """
-    Construct a structured AI narrative around the numeric prediction,
-    applying all AGENT_INSTRUCTIONS rules.
-    """
-    cfg = AGENT_INSTRUCTIONS
-    name     = row["Name"]
-    open_p   = float(row["open"])
-    high_p   = float(row["high"])
-    low_p    = float(row["low"])
-    close_p  = float(row["close"])
-    spread   = high_p - low_p
-    momentum = ((close_p - open_p) / open_p * 100) if open_p else 0
+def fmt_volume(n):
+    if n >= 1000000:
+        return "{:.2f}M".format(n / 1000000)
+    if n >= 1000:
+        return "{:.1f}K".format(n / 1000)
+    return "{:.0f}".format(n)
 
-    vol_label, _ = _classify_volume(predicted_volume)
+
+# --- AI Narrative Builder -----------------------------------------------------
+
+def build_narrative(row, predicted_volume):
+    cfg       = AGENT_INSTRUCTIONS
+    name      = str(row["Name"])
+    open_p    = float(row["open"])
+    high_p    = float(row["high"])
+    low_p     = float(row["low"])
+    close_p   = float(row["close"])
+    spread    = high_p - low_p
+    momentum  = ((close_p - open_p) / open_p * 100) if open_p else 0
+
+    vol_label = classify_volume(predicted_volume)
     conf_low  = predicted_volume * 0.90
     conf_high = predicted_volume * 1.10
 
-    # Risk flag
     risk_flag = ""
-    if predicted_volume > 50_000_000:
+    if predicted_volume > 50000000:
         risk_flag = (
-            "\n> ⚠️ **HIGH RISK FLAG**: Predicted volume exceeds 50M shares — "
-            "this is an extreme-volume event. Exercise heightened caution."
+            "\n[!] HIGH RISK FLAG: Predicted volume exceeds 50M shares - "
+            "this is an extreme-volume event. Exercise heightened caution.\n"
         )
 
-    # Format large numbers readably
-    def fmt(n):
-        if n >= 1_000_000:
-            return f"{n/1_000_000:.2f}M"
-        if n >= 1_000:
-            return f"{n/1_000:.1f}K"
-        return f"{n:.0f}"
-
     maintenance_lines = "\n".join(
-        f"  {i+1}. {item}"
+        "  {}. {}".format(i + 1, item)
         for i, item in enumerate(cfg["maintenance_items"])
     )
     safety_lines = "\n".join(
-        f"  - {item}"
+        "  - {}".format(item)
         for item in cfg["safety_instructions"]
     )
 
     disclaimer = (
-        "\n> ⚠️ **Disclaimer:** This analysis is for informational purposes only "
+        "\n[DISCLAIMER] This analysis is for informational purposes only "
         "and does not constitute financial advice. Always consult a licensed "
-        f"financial advisor. Max recommended leverage for retail investors: "
-        f"{cfg['max_leverage_retail']}x."
+        "financial advisor. Max recommended leverage for retail investors: {}x.".format(
+            cfg["max_leverage_retail"]
+        )
     ) if cfg["mandatory_disclaimer"] else ""
 
-    narrative = f"""## 📊 Volume Prediction Summary
-
-| Field | Value |
-|---|---|
-| **Stock / Ticker** | {name} |
-| **Open** | ${open_p:,.2f} |
-| **High** | ${high_p:,.2f} |
-| **Low** | ${low_p:,.2f} |
-| **Close** | ${close_p:,.2f} |
-| **Day Spread** | ${spread:,.2f} |
-| **Session Momentum** | {momentum:+.2f}% |
-| **Predicted Volume** | **{fmt(predicted_volume)} shares** |
-| **Confidence Range** | {fmt(conf_low)} — {fmt(conf_high)} |
-| **Volume Category** | {vol_label} |
-{risk_flag}
-
----
-
-## 📈 Key Market Drivers
-
-- **Intraday spread** of ${spread:,.2f} indicates {"elevated" if spread > close_p * 0.02 else "moderate"} volatility.
-- **Session momentum** of {momentum:+.2f}% suggests {"bullish" if momentum > 0 else "bearish"} pressure which {"amplifies" if momentum > 0 else "suppresses"} volume.
-- A **{vol_label.lower()}-volume** session ({fmt(predicted_volume)}) implies {"strong institutional participation" if predicted_volume > 10_000_000 else "typical retail-driven activity"}.
-- Price closed {"above" if close_p > open_p else "below"} open — {"positive" if close_p > open_p else "negative"} signal for next-session volume continuation.
-
----
-
-## 🔧 Machine Repair & Maintenance Recommendations
-
-High-volume trading sessions stress infrastructure. Perform the following:
-
-{maintenance_lines}
-
----
-
-## 🦺 Safety Instructions
-
-{safety_lines}
-
----
-{disclaimer}"""
+    narrative = (
+        "## [CHART] Volume Prediction Summary\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Stock / Ticker | {} |\n"
+        "| Open | ${:.2f} |\n"
+        "| High | ${:.2f} |\n"
+        "| Low | ${:.2f} |\n"
+        "| Close | ${:.2f} |\n"
+        "| Day Spread | ${:.2f} |\n"
+        "| Session Momentum | {:+.2f}% |\n"
+        "| Predicted Volume | **{} shares** |\n"
+        "| Confidence Range | {} -- {} |\n"
+        "| Volume Category | {} |\n"
+        "{}\n\n"
+        "---\n\n"
+        "## [UP] Key Market Drivers\n\n"
+        "- Intraday spread of ${:.2f} indicates {} volatility.\n"
+        "- Session momentum of {:+.2f}% suggests {} pressure which {} volume.\n"
+        "- A {}-volume session ({}) implies {}.\n"
+        "- Price closed {} open - {} signal for next-session volume continuation.\n\n"
+        "---\n\n"
+        "## [WRENCH] Machine Repair and Maintenance Recommendations\n\n"
+        "High-volume trading sessions stress infrastructure. Perform the following:\n\n"
+        "{}\n\n"
+        "---\n\n"
+        "## [SAFETY] Safety Instructions\n\n"
+        "{}\n\n"
+        "---\n"
+        "{}"
+    ).format(
+        name,
+        open_p, high_p, low_p, close_p,
+        spread,
+        momentum,
+        fmt_volume(predicted_volume),
+        fmt_volume(conf_low), fmt_volume(conf_high),
+        vol_label,
+        risk_flag,
+        spread,
+        "elevated" if spread > close_p * 0.02 else "moderate",
+        momentum,
+        "bullish" if momentum > 0 else "bearish",
+        "amplifies" if momentum > 0 else "suppresses",
+        vol_label.lower(),
+        fmt_volume(predicted_volume),
+        "strong institutional participation" if predicted_volume > 10000000 else "typical retail-driven activity",
+        "above" if close_p > open_p else "below",
+        "positive" if close_p > open_p else "negative",
+        maintenance_lines,
+        safety_lines,
+        disclaimer,
+    )
 
     return narrative.strip()
 
 
-# ─────── Routes ───────────────────────────────────────────────────────────────
+# --- Routes -------------------------------------------------------------------
 
 @app.route("/")
 def index():
@@ -271,40 +268,31 @@ def index():
 
 @app.route("/api/schema", methods=["GET"])
 def schema():
-    """Return the model input field schema so the UI can render the form."""
     return jsonify({
         "fields": [
-            {"name": "index",  "type": "integer", "label": "Row Index",   "placeholder": "e.g. 0"},
-            {"name": "Name",   "type": "text",    "label": "Stock Ticker","placeholder": "e.g. AAPL"},
-            {"name": "open",   "type": "number",  "label": "Open Price",  "placeholder": "e.g. 172.50"},
-            {"name": "high",   "type": "number",  "label": "High Price",  "placeholder": "e.g. 175.00"},
-            {"name": "low",    "type": "number",  "label": "Low Price",   "placeholder": "e.g. 170.00"},
-            {"name": "close",  "type": "number",  "label": "Close Price", "placeholder": "e.g. 173.80"},
+            {"name": "index",  "type": "integer", "label": "Row Index",    "placeholder": "e.g. 0"},
+            {"name": "Name",   "type": "text",    "label": "Stock Ticker", "placeholder": "e.g. AAPL"},
+            {"name": "open",   "type": "number",  "label": "Open Price",   "placeholder": "e.g. 172.50"},
+            {"name": "high",   "type": "number",  "label": "High Price",   "placeholder": "e.g. 175.00"},
+            {"name": "low",    "type": "number",  "label": "Low Price",    "placeholder": "e.g. 170.00"},
+            {"name": "close",  "type": "number",  "label": "Close Price",  "placeholder": "e.g. 173.80"},
         ]
     })
 
 
 @app.route("/api/predict", methods=["POST"])
 def predict():
-    """
-    Accept structured stock data, call the AutoAI model, build an AI
-    narrative with maintenance + safety guidance, return to the chat UI.
-
-    Expected JSON body:
-        { "index": 0, "Name": "AAPL", "open": 172.5,
-          "high": 175.0, "low": 170.0, "close": 173.8 }
-    """
     body = request.get_json(force=True)
 
     if not IBM_API_KEY:
         return jsonify({"error": "IBM API key not configured on server."}), 500
 
-    # Validate required fields
-    missing = [f for f in MODEL_FIELDS if f not in body or body[f] == ""]
+    missing = [f for f in MODEL_FIELDS if f not in body or str(body[f]).strip() == ""]
     if missing:
         return jsonify({
-            "error": f"Missing required fields: {', '.join(missing)}. "
-                     "Please fill in all fields in the prediction form."
+            "error": "Missing required fields: {}. Please fill in all fields.".format(
+                ", ".join(missing)
+            )
         }), 400
 
     history = session.get("chat_history", [])
@@ -313,12 +301,10 @@ def predict():
         predicted_volume = call_watsonx_tabular(body)
         ai_reply         = build_narrative(body, predicted_volume)
 
-        # Store a concise summary in chat history
-        summary = (
-            f"Predicted volume for {body['Name']}: "
-            f"{predicted_volume/1_000_000:.2f}M shares "
-            f"(open={body['open']}, high={body['high']}, "
-            f"low={body['low']}, close={body['close']})"
+        summary = "Predicted volume for {}: {:.2f}M shares (open={}, high={}, low={}, close={})".format(
+            body["Name"],
+            predicted_volume / 1000000,
+            body["open"], body["high"], body["low"], body["close"],
         )
         history.append({"role": "user",      "content": summary})
         history.append({"role": "assistant", "content": ai_reply})
@@ -336,14 +322,12 @@ def predict():
 
 @app.route("/api/clear", methods=["POST"])
 def clear_history():
-    """Clear the chat session history."""
     session["chat_history"] = []
     return jsonify({"status": "cleared"})
 
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    """Simple health check endpoint."""
     return jsonify({
         "status":    "ok",
         "service":   "Stock Volume Predictor",
@@ -354,22 +338,21 @@ def health():
 
 @app.route("/api/quick-examples", methods=["GET"])
 def quick_examples():
-    """Return prefill examples for the prediction form."""
     return jsonify({
         "examples": [
-            {"label": "AAPL — Bull Day",  "index": 0, "Name": "AAPL",  "open": 172.50, "high": 175.00, "low": 170.00, "close": 174.20},
-            {"label": "TSLA — High Vol",  "index": 1, "Name": "TSLA",  "open": 248.00, "high": 260.00, "low": 242.00, "close": 256.50},
-            {"label": "NVDA — Earnings",  "index": 2, "Name": "NVDA",  "open": 450.00, "high": 480.00, "low": 445.00, "close": 475.00},
-            {"label": "MSFT — Flat Day",  "index": 3, "Name": "MSFT",  "open": 335.00, "high": 337.00, "low": 333.00, "close": 334.50},
-            {"label": "AMZN — Volatile",  "index": 4, "Name": "AMZN",  "open": 185.00, "high": 195.00, "low": 182.00, "close": 192.00},
+            {"label": "AAPL - Bull Day",  "index": 0, "Name": "AAPL", "open": 172.50, "high": 175.00, "low": 170.00, "close": 174.20},
+            {"label": "TSLA - High Vol",  "index": 1, "Name": "TSLA", "open": 248.00, "high": 260.00, "low": 242.00, "close": 256.50},
+            {"label": "NVDA - Earnings",  "index": 2, "Name": "NVDA", "open": 450.00, "high": 480.00, "low": 445.00, "close": 475.00},
+            {"label": "MSFT - Flat Day",  "index": 3, "Name": "MSFT", "open": 335.00, "high": 337.00, "low": 333.00, "close": 334.50},
+            {"label": "AMZN - Volatile",  "index": 4, "Name": "AMZN", "open": 185.00, "high": 195.00, "low": 182.00, "close": 192.00},
         ]
     })
 
 
-# ─────── Entry Point ───────────────────────────────────────────────────────────
+# --- Entry Point --------------------------------------------------------------
 
 if __name__ == "__main__":
     host  = os.getenv("FLASK_HOST",  "0.0.0.0")
-    port  = int(os.getenv("FLASK_PORT", 5000))
+    port  = int(os.getenv("FLASK_PORT", "5000"))
     debug = os.getenv("FLASK_DEBUG", "False").lower() == "true"
     app.run(host=host, port=port, debug=debug)
